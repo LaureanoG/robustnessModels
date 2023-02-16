@@ -17,7 +17,7 @@ from setup_cifar import CIFAR
 import os
 
 
-def train(data, file_name, params, num_epochs=50, batch_size=128, train_temp=1, init=None):
+def train(data, file_name, params, num_epochs=50, batch_size=128, train_temp=1, init=None, learning_rate=0.01, model_decay=None):
     """
     Standard MNIST neural network training procedure.
     """
@@ -50,10 +50,10 @@ def train(data, file_name, params, num_epochs=50, batch_size=128, train_temp=1, 
         return tf.nn.softmax_cross_entropy_with_logits(labels=correct,
                                                        logits=predicted / train_temp)
 
-    adam = Adam(learning_rate=0.01)
+    sgd = SGD(lr=learning_rate, decay=1e-6, momentum=0.9, nesterov=True)
 
-    model.compile(loss=tf.keras.losses.CategoricalCrossentropy(),
-                  optimizer=adam,
+    model.compile(loss=fn,
+                  optimizer=sgd,
                   metrics=['accuracy'])
 
     if init != None:
@@ -107,8 +107,10 @@ def train_distillation(data, file_name, params, num_epochs=50, batch_size=128, t
 if not os.path.isdir('models'):
     os.makedirs('models')
 
-train(CIFAR(),  "models/cifar", [64, 64, 128, 128, 256, 256], num_epochs=50)
-train(MNIST(),  "models/mnist", [32, 32, 64, 64, 200, 200], num_epochs=50)
+train(CIFAR(),  "models/cifar", [64, 64, 128, 128, 256, 256], learning_rate=0.01, model_decay=0.5)
+train(MNIST(),  "models/mnist", [32, 32, 64, 64, 200, 200], learning_rate=0.1, model_decay=1e-6)
+
+
 
 # train_distillation(MNIST(), "models/mnist-distilled-100", [32, 32, 64, 64, 200, 200],
 #                    num_epochs=50, train_temp=100)
