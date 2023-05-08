@@ -9,6 +9,7 @@ import numpy as np
 import sys, os, time
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from matplotlib.cbook import get_sample_data
 
 sys.path.append(os.path.abspath(os.path.join('..', '')))
 
@@ -18,28 +19,39 @@ from generator_v2 import *
 from discriminator_v2 import *
 
 # Constants
-EPOCHS = 50
+EPOCHS = 100
 BATCH_SIZE = 132
-DATASET = "MNIST"
+DATASET = "CIFAR10"
 NOISE_DIM = 100
-SEED = tf.random.normal([16, NOISE_DIM])
+SEED = tf.random.normal([49, NOISE_DIM])
 
 
 
-def generate_and_save_images(model, epoch, test_input):
+def generate_and_save_images(model, epoch, test_input, dataset):
   # Notice `training` is set to False.
   # This is so all layers run in inference mode (batchnorm).
   predictions = model(test_input, training=False)
 
   fig = plt.figure(figsize=(4, 4))
 
-  for i in range(predictions.shape[0]):
-      plt.subplot(4, 4, i+1)
-      plt.imshow(predictions[i, :, :, 0] * 127.5 + 127.5, cmap='gray')
-      plt.axis('off')
+  if dataset.name == "MNIST":
+    for i in range(predictions.shape[0]):
+        plt.subplot(7, 7, i+1)
+        plt.imshow(predictions[i, :, :, 0] * 127.5 + 127.5, cmap='gray')
+  else:
+    for i in range(predictions.shape[0]):
+        plt.subplot(7, 7, i + 1)
+        #print(predictions[i, :, :, :], predictions[i, :, :, :].shape)
+        # plt.imshow(predictions[i, :, :, 0] * 127.5 + 127.5)
+        # plt.imshow(predictions[i, :, :, 1] * 127.5 + 127.5)
+        # plt.imshow(predictions[i, :, :, 2] * 127.5 + 127.5)
+        plt.imshow((predictions[i, :, :, :] + 1)/2)
+        plt.axis('off')
 
-  plt.savefig('Images/image_at_epoch_{:04d}.png'.format(epoch))
-  plt.show()
+  #print(predictions[0])
+
+  plt.savefig('Images/{}_image_at_epoch_{:04d}.png'.format(DATASET, epoch))
+  #plt.show()
 
 
 def train_step(images, generator, discriminator):
@@ -80,32 +92,42 @@ def train(dataset, generator, discriminator):
             train_step(image_batch, generator, discriminator)
 
         # Save the model every 15 epochs
-        if (epoch + 1) % 15 == 0:
+        if (epoch + 1) % 1 == 0:
             checkpoint.save(file_prefix=checkpoint_prefix)
 
         print('Time for epoch {} is {} sec'.format(epoch + 1, time.time() - start))
+        generate_and_save_images(generator.model,
+                                 epoch,
+                                 SEED, dataset)
 
     # Generate after the final epoch
     generate_and_save_images(generator.model,
                              EPOCHS,
-                             SEED)
+                             SEED, dataset)
 
 
 if __name__ == "__main__":
     print("Program Start!")
     print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
-    print("----Hyperparameters----")
+    print("\n----Hyperparameters----")
     print("Epochs:", EPOCHS, "\nBatch size:", BATCH_SIZE, "\nDataset:", DATASET)
 
     print("\nLoading Dataset and Models...")
     if DATASET == "MNIST":
         dataset, generator, discriminator = MNIST(), MNISTGenerator(), MNISTDiscriminator()
     elif DATASET == "CIFAR10":
-        dataset, generator, discriminator = CIFAR(), None, None
+        dataset, generator, discriminator = CIFAR(), CIFARGenerator(), CIFARDiscriminator()
     else:
         print("DATASET constant is not set to a valid dataset. Set to MNIST or CIFAR10.")
         print("Program End!")
         pass
     print("Dataset", DATASET, "and Models Loaded!")
+    # image = dataset.train_data[0]
+    # print(image, image.shape)
+    # image = (image + 1)/2
+    # print(image, image.shape)
+    # plt.imshow(image, interpolation='nearest')
+    # plt.show()
+
     print("Training Start!")
     train(dataset, generator, discriminator)
